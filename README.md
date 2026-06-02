@@ -1,5 +1,7 @@
 # AudioSplit
 
+![Voice segmentation](voice_segmentation.png)
+
 **Browser-based tools for slicing and mapping audio.** Everything runs entirely in your browser using the Web Audio API — your files never leave your machine, and there's no server or upload involved.
 
 AudioSplit bundles two tools behind a simple landing page:
