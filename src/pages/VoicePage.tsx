@@ -133,6 +133,10 @@ export default function VoicePage() {
             onExport={handleExport}
             onReset={handleReset}
           />
+          <div className="file-name" title={loaded.file.name}>
+            <span className="file-name__icon" aria-hidden="true">♪</span>
+            {loaded.file.name}
+          </div>
           <WaveformView
             file={loaded.file}
             segments={segments}

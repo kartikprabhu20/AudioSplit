@@ -378,6 +378,27 @@ body {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
+.file-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-weight: 500;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.file-name__icon {
+  color: var(--accent);
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
 .cursor-time {
   position: absolute;
   bottom: 2px;

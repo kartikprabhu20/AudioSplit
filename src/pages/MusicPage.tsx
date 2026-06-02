@@ -207,6 +207,11 @@ export default function MusicPage() {
             </button>
           </div>
 
+          <div className="file-name" title={loaded.file.name}>
+            <span className="file-name__icon" aria-hidden="true">♪</span>
+            {loaded.file.name}
+          </div>
+
           <WaveformView
             file={loaded.file}
             segments={[]}
