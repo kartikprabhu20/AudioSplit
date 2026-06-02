@@ -32,6 +32,13 @@ function selectedColor(base: string): string {
   return base.replace(/0\.35\)/, '0.6)')
 }
 
+function formatTime(sec: number): string {
+  const m = Math.floor(sec / 60)
+  const s = Math.floor(sec % 60)
+  const ms = Math.floor((sec % 1) * 1000)
+  return `${m}:${s.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`
+}
+
 export function WaveformView({
   file,
   segments,
@@ -52,6 +59,7 @@ export function WaveformView({
   const segmentsRef = useRef<Segment[]>(segments)
   const lastIdsKeyRef = useRef<string>('')
   const [duration, setDuration] = useState(0)
+  const [currentTime, setCurrentTime] = useState(0)
   segmentsRef.current = segments
 
   useEffect(() => {
@@ -80,7 +88,10 @@ export function WaveformView({
     ws.on('play', () => onPlayStateChanged(true))
     ws.on('pause', () => onPlayStateChanged(false))
     ws.on('finish', () => onPlayStateChanged(false))
-    ws.on('timeupdate', (t) => onTimeUpdate(t))
+    ws.on('timeupdate', (t) => {
+      setCurrentTime(t)
+      onTimeUpdate(t)
+    })
 
     regions.on('region-updated', (region: Region) => {
       onSegmentUpdated(region.id, region.start, region.end)
@@ -110,6 +121,7 @@ export function WaveformView({
       regionByIdRef.current.clear()
       lastIdsKeyRef.current = ''
       setDuration(0)
+      setCurrentTime(0)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file])
@@ -149,6 +161,14 @@ export function WaveformView({
   return (
     <div className="waveform-wrap">
       <div ref={containerRef} className="waveform" />
+      {duration > 0 && (
+        <div
+          className="cursor-time"
+          style={{ left: `${Math.max(0, Math.min(100, (currentTime / duration) * 100))}%` }}
+        >
+          {formatTime(currentTime)}
+        </div>
+      )}
       {markers && markers.length > 0 && duration > 0 && (
         <div className="marker-overlay">
           {markers.map((m) => {
