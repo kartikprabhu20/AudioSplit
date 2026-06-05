@@ -15,6 +15,7 @@ import {
   exportPunchesJson,
   gridForType,
 } from '../lib/beatsaber'
+import { makeId } from '../lib/segmenter'
 
 interface LoadedFile {
   file: File
@@ -24,6 +25,7 @@ interface LoadedFile {
 const DEFAULT_X = 30
 const DEFAULT_N = 4
 const MAX_N = 24
+const MAX_PUNCHES = 1000
 
 export default function MusicPage() {
   const [loaded, setLoaded] = useState<LoadedFile | null>(null)
@@ -37,15 +39,21 @@ export default function MusicPage() {
   const [playing, setPlaying] = useState(false)
   const [exporting, setExporting] = useState(false)
 
+  const [punches, setPunches] = useState<Punch[]>([])
+  const [selectedPunchId, setSelectedPunchId] = useState<string | null>(null)
+
   const controlsRef = useRef<{
     playPause: () => void
     getCurrentTime: () => number
     seekTo: (sec: number) => void
   } | null>(null)
+  const currentTimeRef = useRef(0)
 
-  const punches: Punch[] = useMemo(() => {
-    if (!cache) return []
-    return pickPunches(cache, x, n)
+  // Seed the editable punch list from auto-detection. X and N are the generative
+  // controls, so changing them (or loading a new file) regenerates and discards manual edits.
+  useEffect(() => {
+    setPunches(cache ? pickPunches(cache, x, n) : [])
+    setSelectedPunchId(null)
   }, [cache, x, n])
 
   const handleFile = useCallback(async (file: File) => {
@@ -84,7 +92,54 @@ export default function MusicPage() {
     setX(DEFAULT_X)
     setN(DEFAULT_N)
     setBpm(120)
+    setSelectedPunchId(null)
   }, [])
+
+  const handleSelectPunch = useCallback(
+    (id: string) => {
+      setSelectedPunchId(id)
+      const p = punches.find((pp) => pp.id === id)
+      if (p) controlsRef.current?.seekTo(p.time)
+    },
+    [punches],
+  )
+
+  const handleAddPunch = useCallback(() => {
+    if (!loaded) return
+    const time = Math.max(0, Math.min(loaded.duration, currentTimeRef.current))
+    const newPunch: Punch = { id: makeId(), time, type: 0, strength: 0 }
+    setPunches((prev) => {
+      if (prev.length >= MAX_PUNCHES) return prev
+      return [...prev, newPunch].sort((a, b) => a.time - b.time)
+    })
+    setSelectedPunchId(newPunch.id)
+  }, [loaded])
+
+  const handleMovePunch = useCallback((id: string, time: number) => {
+    setPunches((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, time } : p)).sort((a, b) => a.time - b.time),
+    )
+  }, [])
+
+  const handleChangeType = useCallback((id: string, type: number) => {
+    setPunches((prev) => prev.map((p) => (p.id === id ? { ...p, type } : p)))
+  }, [])
+
+  // Backspace/Delete removes the selected marker, unless focus is in a form field.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== 'Backspace' && e.key !== 'Delete') return
+      const el = document.activeElement as HTMLElement | null
+      const tag = el?.tagName
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || el?.isContentEditable) return
+      if (!selectedPunchId) return
+      e.preventDefault()
+      setPunches((prev) => prev.filter((p) => p.id !== selectedPunchId))
+      setSelectedPunchId(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selectedPunchId])
 
   const handleExportJson = useCallback(() => {
     if (!loaded || punches.length === 0) return
@@ -187,6 +242,13 @@ export default function MusicPage() {
             >
               {playing ? 'Pause' : 'Play'}
             </button>
+            <button
+              className="controls__action"
+              onClick={handleAddPunch}
+              disabled={busy || punches.length >= MAX_PUNCHES}
+            >
+              + Add marker
+            </button>
             <div className="controls__spacer" />
             <button
               className="controls__action"
@@ -217,15 +279,16 @@ export default function MusicPage() {
             segments={[]}
             selectedId={null}
             markers={markers}
+            selectedMarkerId={selectedPunchId}
             onReady={() => {}}
             onSegmentUpdated={() => {}}
             onSegmentClicked={() => {}}
-            onMarkerClicked={(id) => {
-              const p = punches.find((pp) => pp.id === id)
-              if (p) controlsRef.current?.seekTo(p.time)
-            }}
+            onMarkerClicked={handleSelectPunch}
+            onMarkerMoved={handleMovePunch}
             onPlayStateChanged={setPlaying}
-            onTimeUpdate={() => {}}
+            onTimeUpdate={(t) => {
+              currentTimeRef.current = t
+            }}
             registerControls={(c) => {
               controlsRef.current = c
             }}
@@ -235,7 +298,10 @@ export default function MusicPage() {
 
           <PunchList
             punches={punches}
-            onSeek={(time) => controlsRef.current?.seekTo(time)}
+            selectedId={selectedPunchId}
+            maxType={n}
+            onSelect={handleSelectPunch}
+            onChangeType={handleChangeType}
           />
         </main>
       )}
@@ -289,12 +355,19 @@ function Stepper({
 
 function PunchList({
   punches,
-  onSeek,
+  selectedId,
+  maxType,
+  onSelect,
+  onChangeType,
 }: {
   punches: Punch[]
-  onSeek: (time: number) => void
+  selectedId: string | null
+  maxType: number
+  onSelect: (id: string) => void
+  onChangeType: (id: string, type: number) => void
 }) {
   if (punches.length === 0) return null
+  const typeOptions = Array.from({ length: Math.max(1, maxType) }, (_, i) => i)
   return (
     <div className="punches">
       <div className="punches__row punches__row--head">
@@ -308,9 +381,9 @@ function PunchList({
         return (
           <div
             key={p.id}
-            className="punches__row"
-            onClick={() => onSeek(p.time)}
-            title="Click to seek"
+            className={`punches__row${p.id === selectedId ? ' punches__row--selected' : ''}`}
+            onClick={() => onSelect(p.id)}
+            title="Click to select"
           >
             <span>{i + 1}</span>
             <span>{p.time.toFixed(3)}</span>
@@ -319,7 +392,18 @@ function PunchList({
                 className="punches__swatch"
                 style={{ background: colorForType(p.type) }}
               />
-              {p.type}
+              <select
+                className="punches__type-select"
+                value={p.type}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => onChangeType(p.id, Number(e.target.value))}
+              >
+                {typeOptions.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
             </span>
             <span>
               {g.c === 0 ? 'L' : 'R'} (x={g.x}, y={g.y})

@@ -15,10 +15,12 @@ interface Props {
   segments: Segment[]
   selectedId: string | null
   markers?: WaveformMarker[]
+  selectedMarkerId?: string | null
   onReady: (durationSec: number) => void
   onSegmentUpdated: (id: string, start: number, end: number) => void
   onSegmentClicked: (id: string) => void
   onMarkerClicked?: (id: string) => void
+  onMarkerMoved?: (id: string, time: number) => void
   onPlayStateChanged: (playing: boolean) => void
   onTimeUpdate: (timeSec: number) => void
   registerControls: (controls: {
@@ -44,15 +46,19 @@ export function WaveformView({
   segments,
   selectedId,
   markers,
+  selectedMarkerId,
   onReady,
   onSegmentUpdated,
   onSegmentClicked,
   onMarkerClicked,
+  onMarkerMoved,
   onPlayStateChanged,
   onTimeUpdate,
   registerControls,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const overlayRef = useRef<HTMLDivElement>(null)
+  const dragRef = useRef<{ id: string; startX: number; moved: boolean } | null>(null)
   const wsRef = useRef<WaveSurfer | null>(null)
   const regionsRef = useRef<ReturnType<typeof RegionsPlugin.create> | null>(null)
   const regionByIdRef = useRef<Map<string, Region>>(new Map())
@@ -170,40 +176,48 @@ export function WaveformView({
         </div>
       )}
       {markers && markers.length > 0 && duration > 0 && (
-        <div className="marker-overlay">
+        <div className="marker-overlay" ref={overlayRef}>
           {markers.map((m) => {
             const pct = Math.max(0, Math.min(100, (m.time / duration) * 100))
+            const selected = m.id === selectedMarkerId
+            const interactive = !!onMarkerClicked || !!onMarkerMoved
             return (
               <div
                 key={m.id}
+                className={`marker${selected ? ' marker--selected' : ''}`}
                 style={{
-                  position: 'absolute',
-                  top: 12,
-                  bottom: 12,
                   left: `${pct}%`,
-                  width: 2,
-                  background: m.color,
-                  pointerEvents: 'none',
-                  opacity: 0.85,
+                  pointerEvents: interactive ? 'auto' : 'none',
+                }}
+                onPointerDown={(e) => {
+                  if (!interactive) return
+                  e.stopPropagation()
+                  e.currentTarget.setPointerCapture(e.pointerId)
+                  dragRef.current = { id: m.id, startX: e.clientX, moved: false }
+                  onMarkerClicked?.(m.id)
+                }}
+                onPointerMove={(e) => {
+                  const drag = dragRef.current
+                  if (!drag || drag.id !== m.id || !onMarkerMoved) return
+                  if (!drag.moved && Math.abs(e.clientX - drag.startX) <= 4) return
+                  drag.moved = true
+                  const rect = overlayRef.current?.getBoundingClientRect()
+                  if (!rect || rect.width === 0) return
+                  const ratio = (e.clientX - rect.left) / rect.width
+                  const time = Math.max(0, Math.min(duration, ratio * duration))
+                  onMarkerMoved(m.id, time)
+                }}
+                onPointerUp={(e) => {
+                  if (dragRef.current?.id === m.id) dragRef.current = null
+                  if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+                    e.currentTarget.releasePointerCapture(e.pointerId)
+                  }
                 }}
               >
-                <button
-                  type="button"
-                  className="marker-label"
-                  style={{
-                    background: m.color,
-                    left: 0,
-                    pointerEvents: onMarkerClicked ? 'auto' : 'none',
-                    border: 'none',
-                    cursor: onMarkerClicked ? 'pointer' : 'default',
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onMarkerClicked?.(m.id)
-                  }}
-                >
+                <span className="marker__line" style={{ background: m.color }} />
+                <span className="marker__label" style={{ background: m.color }}>
                   {m.label}
-                </button>
+                </span>
               </div>
             )
           })}

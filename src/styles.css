@@ -364,18 +364,63 @@ body {
   pointer-events: none;
 }
 
-.marker-label {
+/* A marker is a full-height, comfortably wide grab handle so it can be picked up
+   anywhere along its line — not just on the tiny number. */
+.marker {
   position: absolute;
-  top: 4px;
+  top: 12px;
+  bottom: 12px;
+  width: 24px;
   transform: translateX(-50%);
-  font-size: 10px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.marker:active {
+  cursor: grabbing;
+}
+
+.marker__line {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 22px;
+  bottom: 0;
+  width: 2px;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.marker--selected .marker__line {
+  width: 3px;
+  opacity: 1;
+}
+
+.marker__label {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
-  padding: 1px 5px;
+  padding: 2px 6px;
   border-radius: 8px;
   color: #fff;
   white-space: nowrap;
   font-weight: 600;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  transition: transform 0.08s ease;
+}
+
+.marker:hover .marker__label {
+  transform: translateX(-50%) scale(1.12);
+}
+
+.marker--selected .marker__label {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 .file-name {
@@ -446,6 +491,11 @@ body {
   background: color-mix(in srgb, var(--accent) 5%, var(--panel));
 }
 
+.punches__row--selected,
+.punches__row--selected:hover {
+  background: color-mix(in srgb, var(--accent) 12%, var(--panel));
+}
+
 .punches__row--head {
   font-weight: 600;
   color: var(--muted);
@@ -466,4 +516,16 @@ body {
   width: 12px;
   height: 12px;
   border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.punches__type-select {
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1px 4px;
+  cursor: pointer;
 }
