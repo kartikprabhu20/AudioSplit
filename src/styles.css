@@ -434,6 +434,10 @@ body {
   color: var(--text);
   font-weight: 500;
   overflow: hidden;
+}
+
+.file-name__name {
+  overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -442,6 +446,27 @@ body {
   color: var(--accent);
   font-size: 16px;
   flex-shrink: 0;
+}
+
+.file-name__play {
+  flex-shrink: 0;
+  padding: 4px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.file-name__play:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.file-name__play:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .cursor-time {

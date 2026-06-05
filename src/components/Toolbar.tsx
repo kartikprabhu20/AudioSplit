@@ -1,9 +1,7 @@
 interface Props {
-  playing: boolean
   canEdit: boolean
   canRemove: boolean
   segmentCount: number
-  onPlayPause: () => void
   onAdd: () => void
   onRemove: () => void
   onExport: () => void
@@ -11,11 +9,9 @@ interface Props {
 }
 
 export function Toolbar({
-  playing,
   canEdit,
   canRemove,
   segmentCount,
-  onPlayPause,
   onAdd,
   onRemove,
   onExport,
@@ -23,9 +19,6 @@ export function Toolbar({
 }: Props) {
   return (
     <div className="toolbar">
-      <button onClick={onPlayPause} disabled={!canEdit}>
-        {playing ? 'Pause' : 'Play'}
-      </button>
       <button onClick={onAdd} disabled={!canEdit} title="Add a segment at the current playhead">
         + Segment
       </button>

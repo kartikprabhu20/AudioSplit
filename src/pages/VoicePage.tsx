@@ -123,19 +123,24 @@ export default function VoicePage() {
       ) : (
         <main className="app__main">
           <Toolbar
-            playing={playing}
             canEdit={!busy}
             canRemove={selectedId !== null}
             segmentCount={segments.length}
-            onPlayPause={() => controlsRef.current?.playPause()}
             onAdd={handleAdd}
             onRemove={handleRemove}
             onExport={handleExport}
             onReset={handleReset}
           />
           <div className="file-name" title={loaded.file.name}>
+            <button
+              className="file-name__play"
+              onClick={() => controlsRef.current?.playPause()}
+              disabled={busy}
+            >
+              {playing ? 'Pause' : 'Play'}
+            </button>
             <span className="file-name__icon" aria-hidden="true">♪</span>
-            {loaded.file.name}
+            <span className="file-name__name">{loaded.file.name}</span>
           </div>
           <WaveformView
             file={loaded.file}

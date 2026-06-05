@@ -238,12 +238,6 @@ export default function MusicPage() {
             </div>
             <button
               className="controls__action"
-              onClick={() => controlsRef.current?.playPause()}
-            >
-              {playing ? 'Pause' : 'Play'}
-            </button>
-            <button
-              className="controls__action"
               onClick={handleAddPunch}
               disabled={busy || punches.length >= MAX_PUNCHES}
             >
@@ -270,8 +264,14 @@ export default function MusicPage() {
           </div>
 
           <div className="file-name" title={loaded.file.name}>
+            <button
+              className="file-name__play"
+              onClick={() => controlsRef.current?.playPause()}
+            >
+              {playing ? 'Pause' : 'Play'}
+            </button>
             <span className="file-name__icon" aria-hidden="true">♪</span>
-            {loaded.file.name}
+            <span className="file-name__name">{loaded.file.name}</span>
           </div>
 
           <WaveformView
