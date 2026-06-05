@@ -1,7 +1,5 @@
 # AudioSplit
 
-![Voice segmentation](voice_segmentation.png)
-
 **Browser-based tools for slicing and mapping audio.** Everything runs entirely in your browser using the Web Audio API — your files never leave your machine, and there's no server or upload involved.
 
 AudioSplit bundles two tools behind a simple landing page:
@@ -14,6 +12,8 @@ AudioSplit bundles two tools behind a simple landing page:
 ---
 
 ## VoiceSplit
+
+![Voice segmentation](voice_segmentation.png)
 
 Drop in an audio file and VoiceSplit automatically finds the spoken segments by detecting where sound rises above the background noise floor.
 
@@ -37,6 +37,8 @@ Each entry is `[startSeconds, lengthSeconds]`, sorted by start time.
 ---
 
 ## MusicSplit
+
+![Beat marker](beat_marker.png)
 
 Drop in a song and MusicSplit detects rhythmic events ("punches") and lets you turn them into a playable **Beat Saber** map — styled for boxing-type, any-direction punches.
 
