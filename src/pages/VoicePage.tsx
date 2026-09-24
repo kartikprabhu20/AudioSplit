@@ -4,7 +4,7 @@ import { FileDropZone } from '../components/FileDropZone'
 import { Toolbar } from '../components/Toolbar'
 import { WaveformView } from '../components/WaveformView'
 import { decodeFile } from '../lib/audio'
-import { colorForIndex, makeId, segmentBuffer } from '../lib/segmenter'
+import { colorForIndex, makeId, segmentBuffer, segmentsFromJson } from '../lib/segmenter'
 import type { Segment } from '../lib/types'
 
 interface LoadedFile {
@@ -24,27 +24,68 @@ export default function VoicePage() {
   const controlsRef = useRef<{ playPause: () => void; getCurrentTime: () => number } | null>(null)
   const currentTimeRef = useRef(0)
 
-  const handleFile = useCallback(async (file: File) => {
+  const handleFiles = useCallback(async (files: File[]) => {
     setBusy(true)
     setError(null)
     setInfo(null)
-    setSegments([])
-    setSelectedId(null)
+    const audio = files.find(isAudioFile)
+    const json = files.find(isJsonFile)
+    if (!audio) {
+      setError(json ? 'Drop an audio file too — a JSON file alone cannot be loaded.' : 'Drop an audio file.')
+      setBusy(false)
+      return
+    }
+    let buffer: AudioBuffer
     try {
-      const buffer = await decodeFile(file)
-      const detected = segmentBuffer(buffer)
-      setSegments(detected)
-      setLoaded({ file, duration: buffer.duration })
-      if (detected.length === 0) {
-        setInfo('No segments detected — add some with the + button or load a different file.')
+      buffer = await decodeFile(audio)
+    } catch (e) {
+      console.error(e)
+      setError(`Failed to decode "${audio.name}": ${(e as Error).message || 'unsupported format?'}`)
+      setBusy(false)
+      return
+    }
+    try {
+      if (json) {
+        const text = await json.text()
+        const loadedSegs = segmentsFromJson(text, buffer.duration)
+        setSegments(loadedSegs)
+        setSelectedId(null)
+        setLoaded({ file: audio, duration: buffer.duration })
+        setInfo(segmentLoadMessage(json.name, loadedSegs.length))
+      } else {
+        const detected = segmentBuffer(buffer)
+        setSegments(detected)
+        setSelectedId(null)
+        setLoaded({ file: audio, duration: buffer.duration })
+        setInfo(
+          detected.length === 0
+            ? 'No segments detected — add some with the + button or load a different file.'
+            : null,
+        )
       }
     } catch (e) {
       console.error(e)
-      setError(`Failed to decode "${file.name}": ${(e as Error).message || 'unsupported format?'}`)
+      setError(`Could not load "${json?.name ?? 'segments'}": ${(e as Error).message || 'invalid file'}`)
     } finally {
       setBusy(false)
     }
   }, [])
+
+  const handleImport = useCallback(async (file: File) => {
+    if (!loaded) return
+    setError(null)
+    setInfo(null)
+    try {
+      const text = await file.text()
+      const next = segmentsFromJson(text, loaded.duration)
+      setSegments(next)
+      setSelectedId(null)
+      setInfo(segmentLoadMessage(file.name, next.length))
+    } catch (e) {
+      console.error(e)
+      setError(`Could not import "${file.name}": ${(e as Error).message || 'invalid file'}`)
+    }
+  }, [loaded])
 
   const handleSegmentUpdated = useCallback((id: string, start: number, end: number) => {
     setSegments((prev) =>
@@ -116,7 +157,13 @@ export default function VoicePage() {
 
       {!loaded ? (
         <main className="app__main">
-          <FileDropZone onFile={handleFile} disabled={busy} />
+          <FileDropZone
+            multiple
+            accept="audio/*,.json,application/json"
+            hint="or click to browse — audio, or audio plus a .segments.json"
+            onFiles={handleFiles}
+            disabled={busy}
+          />
           {busy && <div className="status">Decoding and segmenting…</div>}
           {error && <div className="status status--error">{error}</div>}
         </main>
@@ -128,6 +175,7 @@ export default function VoicePage() {
             segmentCount={segments.length}
             onAdd={handleAdd}
             onRemove={handleRemove}
+            onImport={handleImport}
             onExport={handleExport}
             onReset={handleReset}
           />
@@ -158,6 +206,7 @@ export default function VoicePage() {
             }}
           />
           {info && <div className="status">{info}</div>}
+          {error && <div className="status status--error">{error}</div>}
           <SegmentList
             segments={segments}
             selectedId={selectedId}
@@ -197,6 +246,22 @@ function SegmentList({
       ))}
     </ol>
   )
+}
+
+function isJsonFile(file: File): boolean {
+  return file.type === 'application/json' || file.name.toLowerCase().endsWith('.json')
+}
+
+function isAudioFile(file: File): boolean {
+  if (isJsonFile(file)) return false
+  if (file.type.startsWith('audio/')) return true
+  return /\.(wav|mp3|m4a|aac|ogg|flac|aiff|aif|caf|webm)$/i.test(file.name)
+}
+
+function segmentLoadMessage(name: string, count: number): string {
+  const noun = count === 1 ? 'segment' : 'segments'
+  if (count === 0) return `Loaded 0 segments from ${name} — add some with the + button.`
+  return `Loaded ${count} ${noun} from ${name}.`
 }
 
 function round(n: number, digits: number): number {

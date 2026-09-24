@@ -85,3 +85,48 @@ export function segmentBuffer(buffer: AudioBuffer): Segment[] {
 export function makeId(): string {
   return Math.random().toString(36).slice(2, 10)
 }
+
+function isPair(item: unknown): item is [number, number] {
+  return (
+    Array.isArray(item) &&
+    item.length >= 2 &&
+    typeof item[0] === 'number' &&
+    typeof item[1] === 'number' &&
+    Number.isFinite(item[0]) &&
+    Number.isFinite(item[1])
+  )
+}
+
+// VoiceSplit / Boxie format: a top-level array of [startSeconds, lengthSeconds].
+// Pairs are clamped to [0, duration]; non-positive or fully out-of-range entries are dropped.
+export function segmentsFromJson(text: string, duration: number): Segment[] {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text)
+  } catch {
+    throw new Error('Not valid JSON.')
+  }
+  if (!Array.isArray(parsed) || !parsed.every(isPair)) {
+    throw new Error('Expected a JSON array of [start, length] pairs.')
+  }
+
+  const sorted = [...parsed].sort((a, b) => a[0] - b[0])
+  const segments: Segment[] = []
+  for (const [start, length] of sorted) {
+    if (!(length > 0) || !(start < duration)) continue
+    const clampedStart = Math.max(0, start)
+    const end = Math.min(duration, start + length)
+    if (end <= clampedStart) continue
+    segments.push({
+      id: makeId(),
+      start: clampedStart,
+      end,
+      color: colorForIndex(segments.length),
+    })
+  }
+
+  if (parsed.length > 0 && segments.length === 0) {
+    throw new Error('No segments fall inside this audio.')
+  }
+  return segments
+}
